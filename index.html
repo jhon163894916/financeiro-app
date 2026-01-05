@@ -10,7 +10,7 @@
 <style>
 body{
   margin:0;
-  font-family:system-ui;
+  font-family:system-ui, -apple-system, BlinkMacSystemFont;
   background:#0f172a;
   color:#e5e7eb;
 }
@@ -22,33 +22,37 @@ body{
 header{
   background:linear-gradient(135deg,#2563eb,#1e40af);
   padding:16px;
-  border-radius:12px;
+  border-radius:14px;
 }
 h1{margin:0;font-size:20px}
-.saldo{font-size:28px;font-weight:bold;margin-top:8px}
+.saldo{
+  font-size:28px;
+  font-weight:700;
+  margin-top:8px;
+}
 .card{
   background:#111827;
   padding:14px;
-  border-radius:12px;
+  border-radius:14px;
   margin-top:12px;
 }
 button{
   width:100%;
   padding:14px;
   border:none;
-  border-radius:10px;
+  border-radius:12px;
   background:#2563eb;
   color:white;
   font-size:16px;
   margin-top:8px;
 }
-button.red{background:#dc2626}
 button.gray{background:#374151}
+button.red{background:#dc2626}
 .lista .item{
   display:flex;
   justify-content:space-between;
-  border-bottom:1px solid #1f2933;
-  padding:8px 0;
+  border-bottom:1px solid #1f2937;
+  padding:10px 0;
 }
 small{color:#9ca3af}
 </style>
@@ -59,7 +63,7 @@ small{color:#9ca3af}
 <div id="lock" class="container" style="display:none">
   <h2>Digite seu PIN</h2>
   <input id="pinInput" type="password" maxlength="4" style="width:100%;padding:14px;font-size:18px">
-  <button onclick="verificarPin()">Entrar</button>
+  <button onclick="checkPin()">Entrar</button>
 </div>
 
 <div id="app" class="container">
@@ -70,128 +74,140 @@ small{color:#9ca3af}
 </header>
 
 <div class="card">
-  <button onclick="ouvir()">🎙️ Falar lançamento</button>
-  <button class="gray" onclick="desfazer()">↩️ Desfazer último</button>
-  <button class="gray" onclick="exportarPDF()">📄 Exportar PDF</button>
+  <button onclick="listen()">🎙️ Falar lançamento</button>
+  <button class="gray" onclick="undo()">↩️ Desfazer último</button>
+  <button class="gray" onclick="exportPDF()">📄 Exportar PDF</button>
 </div>
 
 <div class="card">
   <h3>Relatório do mês</h3>
-  <div id="relatorio"></div>
+  <div id="report"></div>
 </div>
 
-<div class="card lista" id="lista"></div>
+<div class="card lista" id="list"></div>
 
 </div>
 
 <script>
-let dados = JSON.parse(localStorage.getItem("dados")) || [];
-let saldo = parseFloat(localStorage.getItem("saldo")) || 0;
+let data = JSON.parse(localStorage.getItem("data")) || [];
+let balance = parseFloat(localStorage.getItem("balance")) || 0;
 
-const saldoEl = document.getElementById("saldo");
-const listaEl = document.getElementById("lista");
-const relatorioEl = document.getElementById("relatorio");
+const balanceEl = document.getElementById("saldo");
+const listEl = document.getElementById("list");
+const reportEl = document.getElementById("report");
 
-function salvar(){
-  localStorage.setItem("dados", JSON.stringify(dados));
-  localStorage.setItem("saldo", saldo);
+function save(){
+  localStorage.setItem("data", JSON.stringify(data));
+  localStorage.setItem("balance", balance);
 }
 
 function render(){
-  saldoEl.textContent = "R$ " + saldo.toFixed(2);
-  listaEl.innerHTML = "";
-  dados.forEach(d=>{
-    listaEl.innerHTML += `
+  balanceEl.textContent = "R$ " + balance.toFixed(2);
+  listEl.innerHTML = "";
+  data.forEach(d=>{
+    listEl.innerHTML += `
       <div class="item">
         <div>
-          <strong>${d.tipo.toUpperCase()} - R$ ${d.valor.toFixed(2)}</strong><br>
-          <small>${d.categoria}</small>
+          <strong>${d.type.toUpperCase()} - R$ ${d.value.toFixed(2)}</strong><br>
+          <small>${d.category}</small>
         </div>
-        <small>${new Date(d.data).toLocaleDateString()}</small>
+        <small>${new Date(d.date).toLocaleDateString()}</small>
       </div>
     `;
   });
-  gerarRelatorio();
+  monthlyReport();
 }
 
-function gerarRelatorio(){
-  const agora = new Date();
-  let entrada = 0, saida = 0;
-  dados.forEach(d=>{
-    const dt = new Date(d.data);
-    if(dt.getMonth()===agora.getMonth() && dt.getFullYear()===agora.getFullYear()){
-      d.tipo==="entrada"?entrada+=d.valor:saida+=d.valor;
+function monthlyReport(){
+  const now = new Date();
+  let income = 0, expense = 0;
+
+  data.forEach(d=>{
+    const dt = new Date(d.date);
+    if(dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear()){
+      d.type === "income" ? income += d.value : expense += d.value;
     }
   });
-  relatorioEl.innerHTML = `
-    Entradas: R$ ${entrada.toFixed(2)}<br>
-    Saídas: R$ ${saida.toFixed(2)}<br>
-    Saldo: R$ ${(entrada-saida).toFixed(2)}
+
+  reportEl.innerHTML = `
+    Entradas: R$ ${income.toFixed(2)}<br>
+    Saídas: R$ ${expense.toFixed(2)}<br>
+    Saldo: R$ ${(income - expense).toFixed(2)}
   `;
 }
 
-function desfazer(){
-  if(dados.length===0)return;
-  const u = dados.pop();
-  u.tipo==="entrada"?saldo-=u.valor:saldo+=u.valor;
-  salvar();
+function undo(){
+  if(data.length === 0) return;
+  const last = data.pop();
+  last.type === "income" ? balance -= last.value : balance += last.value;
+  save();
   render();
 }
 
-function ouvir(){
-  const r = new (window.SpeechRecognition||window.webkitSpeechRecognition)();
-  r.lang="pt-BR";
-  r.start();
-  r.onresult=e=>processarTexto(e.results[0][0].transcript.toLowerCase());
+function listen(){
+  const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  rec.lang = "pt-BR";
+  rec.start();
+
+  rec.onresult = e => parseText(e.results[0][0].transcript.toLowerCase());
 }
 
-function processarTexto(t){
-  if(/desfazer/.test(t)){desfazer();return;}
+function parseText(text){
+  if(/desfazer|cancelar/.test(text)){
+    undo();
+    return;
+  }
 
-  const valorMatch = t.match(/(\d+)/);
-  if(!valorMatch)return;
+  const valueMatch = text.match(/(\d+)/);
+  if(!valueMatch) return;
 
-  const valor = parseFloat(valorMatch[1]);
-  const tipo = /recebi|ganhei|entrada/.test(t)?"entrada":"saida";
+  const value = parseFloat(valueMatch[1]);
+  const type = /recebi|ganhei|entrada|sal[aá]rio/.test(text) ? "income" : "expense";
 
-  let categoria="Outros";
-  if(/mercado|comida/.test(t))categoria="Alimentação";
-  if(/aluguel/.test(t))categoria="Moradia";
-  if(/sal[aá]rio/.test(t))categoria="Salário";
+  let category = "Outros";
+  if(/mercado|comida|alimenta/.test(text)) category = "Alimentação";
+  if(/aluguel|casa/.test(text)) category = "Moradia";
+  if(/sal[aá]rio/.test(text)) category = "Salário";
+  if(/luz|energia/.test(text)) category = "Energia";
 
-  dados.push({valor,tipo,categoria,data:new Date()});
-  tipo==="entrada"?saldo+=valor:saldo-=valor;
+  data.push({ value, type, category, date:new Date() });
+  type === "income" ? balance += value : balance -= value;
 
-  salvar();
+  save();
   render();
 }
 
-function exportarPDF(){
-  const {jsPDF}=window.jspdf;
-  const pdf=new jsPDF();
-  pdf.text("Relatório Financeiro",10,10);
-  let y=20;
-  dados.forEach(d=>{
-    pdf.text(`${d.tipo} R$${d.valor} ${d.categoria}`,10,y);
-    y+=7;
+function exportPDF(){
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+
+  pdf.text("Relatório Financeiro", 10, 10);
+  let y = 20;
+
+  data.forEach(d=>{
+    pdf.text(`${d.type} R$ ${d.value} ${d.category}`, 10, y);
+    y += 7;
   });
+
   pdf.save("financeiro.pdf");
 }
 
 // PIN simples
-const PIN="1234";
-if(localStorage.getItem("pinAtivo")){
-  document.getElementById("app").style.display="none";
-  document.getElementById("lock").style.display="block";
+const PIN = "1234";
+if(localStorage.getItem("pinActive")){
+  document.getElementById("app").style.display = "none";
+  document.getElementById("lock").style.display = "block";
 }
-function verificarPin(){
-  if(document.getElementById("pinInput").value===PIN){
-    document.getElementById("lock").style.display="none";
-    document.getElementById("app").style.display="block";
+
+function checkPin(){
+  if(document.getElementById("pinInput").value === PIN){
+    document.getElementById("lock").style.display = "none";
+    document.getElementById("app").style.display = "block";
   }
 }
 
 render();
 </script>
+
 </body>
 </html>
