@@ -11,203 +11,174 @@
 body{
   margin:0;
   font-family:system-ui, -apple-system, BlinkMacSystemFont;
-  background:#0f172a;
-  color:#e5e7eb;
+  background:linear-gradient(180deg,#0a1020,#060b18);
+  color:#fff;
 }
 .container{
-  max-width:480px;
+  max-width:420px;
   margin:auto;
   padding:16px;
 }
 header{
   background:linear-gradient(135deg,#2563eb,#1e40af);
-  padding:16px;
-  border-radius:14px;
+  padding:20px;
+  border-radius:16px;
 }
-h1{margin:0;font-size:20px}
-.saldo{
-  font-size:28px;
-  font-weight:700;
-  margin-top:8px;
-}
+header h1{margin:0;font-size:20px}
+#saldo{font-size:32px;font-weight:700;margin-top:6px}
 .card{
   background:#111827;
-  padding:14px;
+  padding:16px;
   border-radius:14px;
-  margin-top:12px;
+  margin-top:14px;
 }
-button{
+button,input,select{
   width:100%;
   padding:14px;
+  margin-top:8px;
   border:none;
   border-radius:12px;
-  background:#2563eb;
-  color:white;
   font-size:16px;
-  margin-top:8px;
 }
-button.gray{background:#374151}
-button.red{background:#dc2626}
-.lista .item{
-  display:flex;
-  justify-content:space-between;
-  border-bottom:1px solid #1f2937;
-  padding:10px 0;
+button{
+  background:#2563eb;
+  color:#fff;
+  font-weight:600;
 }
+button.secondary{background:#374151}
+button.danger{background:#dc2626}
 small{color:#9ca3af}
+hr{border:1px solid #1f2937;margin:12px 0}
 </style>
 </head>
 
 <body>
-
-<div id="lock" class="container" style="display:none">
-  <h2>Digite seu PIN</h2>
-  <input id="pinInput" type="password" maxlength="4" style="width:100%;padding:14px;font-size:18px">
-  <button onclick="checkPin()">Entrar</button>
-</div>
-
-<div id="app" class="container">
+<div class="container">
 
 <header>
   <h1>Financeiro Pro</h1>
-  <div class="saldo" id="saldo">R$ 0,00</div>
+  <div id="saldo">R$ 0,00</div>
 </header>
 
 <div class="card">
-  <button onclick="listen()">🎙️ Falar lançamento</button>
-  <button class="gray" onclick="undo()">↩️ Desfazer último</button>
-  <button class="gray" onclick="exportPDF()">📄 Exportar PDF</button>
+  <button onclick="ouvir()">🎙️ Falar lançamento</button>
+  <button class="secondary" onclick="desfazer()">↩️ Desfazer último</button>
+  <button class="secondary" onclick="exportarPDF()">📄 Exportar PDF</button>
 </div>
 
 <div class="card">
-  <h3>Relatório do mês</h3>
-  <div id="report"></div>
+  <strong>Lançamento manual</strong>
+  <input id="valorManual" placeholder="Valor (ex: 67,91)">
+  <input id="descManual" placeholder="Descrição">
+  <select id="tipoManual">
+    <option value="saida">Saída</option>
+    <option value="entrada">Entrada</option>
+  </select>
+  <button onclick="manual()">Registrar</button>
 </div>
 
-<div class="card lista" id="list"></div>
+<div class="card">
+  <strong>Relatório do mês</strong><br><br>
+  Entradas: <span id="ent">R$ 0,00</span><br>
+  Saídas: <span id="sai">R$ 0,00</span><br>
+  Saldo: <span id="sal">R$ 0,00</span>
+</div>
 
 </div>
 
 <script>
-let data = JSON.parse(localStorage.getItem("data")) || [];
-let balance = parseFloat(localStorage.getItem("balance")) || 0;
+const STORAGE = "financeiro_pro_v2";
+let dados = JSON.parse(localStorage.getItem(STORAGE)) || [];
 
-const balanceEl = document.getElementById("saldo");
-const listEl = document.getElementById("list");
-const reportEl = document.getElementById("report");
+function salvar(){localStorage.setItem(STORAGE,JSON.stringify(dados));}
 
-function save(){
-  localStorage.setItem("data", JSON.stringify(data));
-  localStorage.setItem("balance", balance);
+function parseValor(txt){
+  txt = txt.toLowerCase()
+    .replace("reais","")
+    .replace("real","")
+    .replace("centavos","")
+    .replace("centavo","")
+    .replace(" e ",",")
+    .replace(".",",");
+  let m = txt.match(/(\d+,\d{1,2}|\d+)/);
+  return m ? parseFloat(m[0].replace(",",".")) : 0;
+}
+
+function detectarTipo(txt){
+  if(/recebi|ganhei|entrada|salário|pix/.test(txt)) return "entrada";
+  return "saida";
+}
+
+function detectarCategoria(txt){
+  if(/mercado|supermercado|comida|aliment/.test(txt)) return "Alimentação";
+  if(/aluguel|luz|água|internet/.test(txt)) return "Moradia";
+  if(/combustível|gasolina|ônibus|uber/.test(txt)) return "Transporte";
+  if(/diária|serviço|trabalho/.test(txt)) return "Renda";
+  return "Outros";
+}
+
+function registrar(obj){
+  dados.push({...obj, data:new Date().toISOString()});
+  salvar();
+  render();
+}
+
+function ouvir(){
+  const r = new (window.SpeechRecognition||webkitSpeechRecognition)();
+  r.lang="pt-BR";
+  r.start();
+  r.onresult=e=>{
+    const t=e.results[0][0].transcript;
+    registrar({
+      valor:parseValor(t),
+      tipo:detectarTipo(t),
+      categoria:detectarCategoria(t),
+      descricao:t
+    });
+  };
+}
+
+function manual(){
+  const v=parseValor(document.getElementById("valorManual").value);
+  if(!v)return;
+  registrar({
+    valor:v,
+    tipo:document.getElementById("tipoManual").value,
+    categoria:detectarCategoria(document.getElementById("descManual").value),
+    descricao:document.getElementById("descManual").value
+  });
+}
+
+function desfazer(){
+  dados.pop();
+  salvar();
+  render();
 }
 
 function render(){
-  balanceEl.textContent = "R$ " + balance.toFixed(2);
-  listEl.innerHTML = "";
-  data.forEach(d=>{
-    listEl.innerHTML += `
-      <div class="item">
-        <div>
-          <strong>${d.type.toUpperCase()} - R$ ${d.value.toFixed(2)}</strong><br>
-          <small>${d.category}</small>
-        </div>
-        <small>${new Date(d.date).toLocaleDateString()}</small>
-      </div>
-    `;
+  let ent=0,sai=0;
+  dados.forEach(d=>{
+    d.tipo==="entrada"?ent+=d.valor:sai+=d.valor;
   });
-  monthlyReport();
+  const saldo=ent-sai;
+  document.getElementById("saldo").innerText="R$ "+saldo.toFixed(2);
+  document.getElementById("ent").innerText="R$ "+ent.toFixed(2);
+  document.getElementById("sai").innerText="R$ "+sai.toFixed(2);
+  document.getElementById("sal").innerText="R$ "+saldo.toFixed(2);
 }
+render();
 
-function monthlyReport(){
-  const now = new Date();
-  let income = 0, expense = 0;
-
-  data.forEach(d=>{
-    const dt = new Date(d.date);
-    if(dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear()){
-      d.type === "income" ? income += d.value : expense += d.value;
-    }
+function exportarPDF(){
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF();
+  pdf.text("Financeiro Pro",10,10);
+  let y=20;
+  dados.forEach(d=>{
+    pdf.text(`${d.tipo.toUpperCase()} | R$ ${d.valor.toFixed(2)} | ${d.categoria}`,10,y);
+    y+=8;
   });
-
-  reportEl.innerHTML = `
-    Entradas: R$ ${income.toFixed(2)}<br>
-    Saídas: R$ ${expense.toFixed(2)}<br>
-    Saldo: R$ ${(income - expense).toFixed(2)}
-  `;
-}
-
-function undo(){
-  if(data.length === 0) return;
-  const last = data.pop();
-  last.type === "income" ? balance -= last.value : balance += last.value;
-  save();
-  render();
-}
-
-function listen(){
-  const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  rec.lang = "pt-BR";
-  rec.start();
-
-  rec.onresult = e => parseText(e.results[0][0].transcript.toLowerCase());
-}
-
-function parseText(text){
-  if(/desfazer|cancelar/.test(text)){
-    undo();
-    return;
-  }
-
-  const valueMatch = text.match(/(\d+)/);
-  if(!valueMatch) return;
-
-  const value = parseFloat(valueMatch[1]);
-  const type = /recebi|ganhei|entrada|sal[aá]rio/.test(text) ? "income" : "expense";
-
-  let category = "Outros";
-  if(/mercado|comida|alimenta/.test(text)) category = "Alimentação";
-  if(/aluguel|casa/.test(text)) category = "Moradia";
-  if(/sal[aá]rio/.test(text)) category = "Salário";
-  if(/luz|energia/.test(text)) category = "Energia";
-
-  data.push({ value, type, category, date:new Date() });
-  type === "income" ? balance += value : balance -= value;
-
-  save();
-  render();
-}
-
-function exportPDF(){
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF();
-
-  pdf.text("Relatório Financeiro", 10, 10);
-  let y = 20;
-
-  data.forEach(d=>{
-    pdf.text(`${d.type} R$ ${d.value} ${d.category}`, 10, y);
-    y += 7;
-  });
-
   pdf.save("financeiro.pdf");
 }
-
-// PIN simples
-const PIN = "1234";
-if(localStorage.getItem("pinActive")){
-  document.getElementById("app").style.display = "none";
-  document.getElementById("lock").style.display = "block";
-}
-
-function checkPin(){
-  if(document.getElementById("pinInput").value === PIN){
-    document.getElementById("lock").style.display = "none";
-    document.getElementById("app").style.display = "block";
-  }
-}
-
-render();
 </script>
-
 </body>
 </html>
