@@ -5,296 +5,193 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Financeiro Pro</title>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
-:root{
-  --bg:#0a0f1e;
-  --card:#121833;
-  --primary:#4f46e5;
-  --green:#22c55e;
-  --red:#ef4444;
-  --yellow:#facc15;
-  --text:#e5e7eb;
-  --muted:#9ca3af;
-}
-
-*{box-sizing:border-box}
-
 body{
   margin:0;
-  font-family:system-ui, -apple-system, BlinkMacSystemFont;
-  background:linear-gradient(180deg,#070b18,#0a0f1e);
-  color:var(--text);
-  padding:16px;
+  font-family:system-ui;
+  background:#0f172a;
+  color:#e5e7eb;
 }
-
 .container{
   max-width:480px;
   margin:auto;
+  padding:16px;
 }
-
-.header{
-  background:linear-gradient(135deg,#4f46e5,#6366f1);
-  border-radius:18px;
-  padding:20px;
-  margin-bottom:18px;
+header{
+  background:linear-gradient(135deg,#2563eb,#1e40af);
+  padding:16px;
+  border-radius:12px;
 }
-
-.header h1{
-  margin:0;
-  font-size:20px;
+h1{margin:0;font-size:20px}
+.saldo{font-size:28px;font-weight:bold;margin-top:8px}
+.card{
+  background:#111827;
+  padding:14px;
+  border-radius:12px;
+  margin-top:12px;
 }
-
-.saldo{
-  font-size:32px;
-  font-weight:700;
+button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:10px;
+  background:#2563eb;
+  color:white;
+  font-size:16px;
   margin-top:8px;
 }
-
-.status{
-  font-size:14px;
-  margin-top:6px;
-}
-
-.card{
-  background:var(--card);
-  border-radius:16px;
-  padding:16px;
-  margin-bottom:16px;
-}
-
-.grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-}
-
-.box{
-  background:#080d24;
-  padding:14px;
-  border-radius:14px;
-}
-
-.box span{
-  font-size:13px;
-  color:var(--muted);
-}
-
-.box strong{
-  display:block;
-  font-size:18px;
-  margin-top:4px;
-}
-
-input, select, button{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  border-radius:12px;
-  border:none;
-  font-size:15px;
-  background:#080d24;
-  color:var(--text);
-}
-
-button{
-  background:linear-gradient(135deg,#4f46e5,#6366f1);
-  font-weight:600;
-}
-
-.item{
-  background:#080d24;
-  padding:12px;
-  border-radius:14px;
-  margin-top:10px;
+button.red{background:#dc2626}
+button.gray{background:#374151}
+.lista .item{
   display:flex;
   justify-content:space-between;
-  align-items:center;
+  border-bottom:1px solid #1f2933;
+  padding:8px 0;
 }
-
-small{color:var(--muted)}
-
-.green{color:var(--green)}
-.red{color:var(--red)}
-.yellow{color:var(--yellow)}
-
-.insight{
-  background:#080d24;
-  padding:12px;
-  border-radius:12px;
-  margin-top:10px;
-  font-size:14px;
-}
+small{color:#9ca3af}
 </style>
 </head>
 
 <body>
-<div class="container">
 
-<div class="header">
+<div id="lock" class="container" style="display:none">
+  <h2>Digite seu PIN</h2>
+  <input id="pinInput" type="password" maxlength="4" style="width:100%;padding:14px;font-size:18px">
+  <button onclick="verificarPin()">Entrar</button>
+</div>
+
+<div id="app" class="container">
+
+<header>
   <h1>Financeiro Pro</h1>
   <div class="saldo" id="saldo">R$ 0,00</div>
-  <div class="status" id="status">Saúde financeira: —</div>
+</header>
+
+<div class="card">
+  <button onclick="ouvir()">🎙️ Falar lançamento</button>
+  <button class="gray" onclick="desfazer()">↩️ Desfazer último</button>
+  <button class="gray" onclick="exportarPDF()">📄 Exportar PDF</button>
 </div>
 
 <div class="card">
-  <div class="grid">
-    <div class="box">
-      <span>Entradas</span>
-      <strong class="green" id="entrada">R$ 0</strong>
-    </div>
-    <div class="box">
-      <span>Saídas</span>
-      <strong class="red" id="saida">R$ 0</strong>
-    </div>
-  </div>
+  <h3>Relatório do mês</h3>
+  <div id="relatorio"></div>
 </div>
 
-<div class="card">
-  <h3>🧠 Diagnóstico</h3>
-  <div id="insights"></div>
-</div>
-
-<div class="card">
-  <select id="tipo">
-    <option value="entrada">Entrada</option>
-    <option value="saida">Saída</option>
-  </select>
-
-  <input id="descricao" placeholder="Descrição">
-  <button type="button" onclick="iniciarVoz()">🎤 Falar</button>
-
-  <select id="categoria">
-    <option>Alimentação</option>
-    <option>Moradia</option>
-    <option>Transporte</option>
-    <option>Trabalho</option>
-    <option>Outros</option>
-  </select>
-
-  <input type="number" id="valor" placeholder="Valor R$" step="0.01">
-  <button onclick="add()">Registrar</button>
-</div>
-
-<div class="card">
-  <h3>Histórico</h3>
-  <div id="lista"></div>
-</div>
+<div class="card lista" id="lista"></div>
 
 </div>
 
 <script>
-let dados = JSON.parse(localStorage.getItem("finpro")) || [];
+let dados = JSON.parse(localStorage.getItem("dados")) || [];
+let saldo = parseFloat(localStorage.getItem("saldo")) || 0;
+
+const saldoEl = document.getElementById("saldo");
+const listaEl = document.getElementById("lista");
+const relatorioEl = document.getElementById("relatorio");
 
 function salvar(){
-  localStorage.setItem("finpro", JSON.stringify(dados));
-}
-
-function add(){
-  if(!descricao.value || !valor.value){
-    alert("Preencha a descrição e o valor");
-    return;
-  }
-
-  dados.push({
-    tipo:tipo.value,
-    descricao:descricao.value,
-    categoria:categoria.value,
-    valor:Number(valor.value),
-    data:new Date()
-  });
-
-  descricao.value="";
-  valor.value="";
-  salvar();
-  render();
-}
-
-function iniciarVoz(){
-  if (!('webkitSpeechRecognition' in window)) {
-    alert("Reconhecimento de voz não suportado neste navegador");
-    return;
-  }
-
-  const reconhecimento = new webkitSpeechRecognition();
-  reconhecimento.lang = "pt-BR";
-  reconhecimento.interimResults = false;
-  reconhecimento.maxAlternatives = 1;
-
-  reconhecimento.start();
-
-  reconhecimento.onresult = function(event){
-    const texto = event.results[0][0].transcript;
-    descricao.value = texto;
-  };
-
-  reconhecimento.onerror = function(){
-    alert("Erro ao reconhecer a voz");
-  };
+  localStorage.setItem("dados", JSON.stringify(dados));
+  localStorage.setItem("saldo", saldo);
 }
 
 function render(){
-  let entrada=0, saida=0;
-  lista.innerHTML="";
-  insights.innerHTML="";
-
-  dados.forEach((d,i)=>{
-    d.tipo==="entrada" ? entrada+=d.valor : saida+=d.valor;
-
-    lista.innerHTML+=`
+  saldoEl.textContent = "R$ " + saldo.toFixed(2);
+  listaEl.innerHTML = "";
+  dados.forEach(d=>{
+    listaEl.innerHTML += `
       <div class="item">
         <div>
-          <strong class="${d.tipo==="entrada"?"green":"red"}">
-            ${d.tipo==="entrada"?"+":"-"} R$ ${d.valor.toFixed(2)}
-          </strong><br>
-          <small>${d.descricao} • ${d.categoria}</small>
+          <strong>${d.tipo.toUpperCase()} - R$ ${d.valor.toFixed(2)}</strong><br>
+          <small>${d.categoria}</small>
         </div>
-        <button onclick="del(${i})">✕</button>
-      </div>`;
+        <small>${new Date(d.data).toLocaleDateString()}</small>
+      </div>
+    `;
   });
-
-  let saldo = entrada - saida;
-
-  entradaEl.textContent = "R$ " + entrada.toFixed(2);
-  saidaEl.textContent = "R$ " + saida.toFixed(2);
-  saldoEl.textContent = "R$ " + saldo.toFixed(2);
-
-  if(saldo > 0 && saida < entrada * 0.8){
-    status.textContent = "Saúde financeira: Boa";
-    status.className = "status green";
-  } else if(saldo > 0){
-    status.textContent = "Saúde financeira: Atenção";
-    status.className = "status yellow";
-  } else {
-    status.textContent = "Saúde financeira: Crítica";
-    status.className = "status red";
-  }
-
-  if(saida > entrada){
-    addInsight("Você está gastando mais do que ganha. Corte despesas.","red");
-  } else {
-    addInsight("Seu fluxo financeiro está positivo.","green");
-  }
-
-  let media = dados.length ? saida / new Date().getDate() : 0;
-  addInsight("Média de gasto diário: R$ " + media.toFixed(2),"");
+  gerarRelatorio();
 }
 
-function addInsight(txt,color){
-  insights.innerHTML += `<div class="insight ${color}">${txt}</div>`;
+function gerarRelatorio(){
+  const agora = new Date();
+  let entrada = 0, saida = 0;
+  dados.forEach(d=>{
+    const dt = new Date(d.data);
+    if(dt.getMonth()===agora.getMonth() && dt.getFullYear()===agora.getFullYear()){
+      d.tipo==="entrada"?entrada+=d.valor:saida+=d.valor;
+    }
+  });
+  relatorioEl.innerHTML = `
+    Entradas: R$ ${entrada.toFixed(2)}<br>
+    Saídas: R$ ${saida.toFixed(2)}<br>
+    Saldo: R$ ${(entrada-saida).toFixed(2)}
+  `;
 }
 
-function del(i){
-  dados.splice(i,1);
+function desfazer(){
+  if(dados.length===0)return;
+  const u = dados.pop();
+  u.tipo==="entrada"?saldo-=u.valor:saldo+=u.valor;
   salvar();
   render();
 }
 
-const entradaEl = entrada;
-const saidaEl = saida;
-const saldoEl = saldo;
+function ouvir(){
+  const r = new (window.SpeechRecognition||window.webkitSpeechRecognition)();
+  r.lang="pt-BR";
+  r.start();
+  r.onresult=e=>processarTexto(e.results[0][0].transcript.toLowerCase());
+}
+
+function processarTexto(t){
+  if(/desfazer/.test(t)){desfazer();return;}
+
+  const valorMatch = t.match(/(\d+)/);
+  if(!valorMatch)return;
+
+  const valor = parseFloat(valorMatch[1]);
+  const tipo = /recebi|ganhei|entrada/.test(t)?"entrada":"saida";
+
+  let categoria="Outros";
+  if(/mercado|comida/.test(t))categoria="Alimentação";
+  if(/aluguel/.test(t))categoria="Moradia";
+  if(/sal[aá]rio/.test(t))categoria="Salário";
+
+  dados.push({valor,tipo,categoria,data:new Date()});
+  tipo==="entrada"?saldo+=valor:saldo-=valor;
+
+  salvar();
+  render();
+}
+
+function exportarPDF(){
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF();
+  pdf.text("Relatório Financeiro",10,10);
+  let y=20;
+  dados.forEach(d=>{
+    pdf.text(`${d.tipo} R$${d.valor} ${d.categoria}`,10,y);
+    y+=7;
+  });
+  pdf.save("financeiro.pdf");
+}
+
+// PIN simples
+const PIN="1234";
+if(localStorage.getItem("pinAtivo")){
+  document.getElementById("app").style.display="none";
+  document.getElementById("lock").style.display="block";
+}
+function verificarPin(){
+  if(document.getElementById("pinInput").value===PIN){
+    document.getElementById("lock").style.display="none";
+    document.getElementById("app").style.display="block";
+  }
+}
 
 render();
 </script>
-
 </body>
 </html>
