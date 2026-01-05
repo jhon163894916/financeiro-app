@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financeiro Pro</title>
+
+<style>
+:root{
+  --bg:#0a0f1e;
+  --card:#121833;
+  --primary:#4f46e5;
+  --green:#22c55e;
+  --red:#ef4444;
+  --yellow:#facc15;
+  --text:#e5e7eb;
+  --muted:#9ca3af;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:system-ui, -apple-system, BlinkMacSystemFont;
+  background:linear-gradient(180deg,#070b18,#0a0f1e);
+  color:var(--text);
+  padding:16px;
+}
+
+.container{
+  max-width:480px;
+  margin:auto;
+}
+
+.header{
+  background:linear-gradient(135deg,#4f46e5,#6366f1);
+  border-radius:18px;
+  padding:20px;
+  margin-bottom:18px;
+}
+
+.header h1{
+  margin:0;
+  font-size:20px;
+}
+
+.saldo{
+  font-size:32px;
+  font-weight:700;
+  margin-top:8px;
+}
+
+.status{
+  font-size:14px;
+  margin-top:6px;
+}
+
+.card{
+  background:var(--card);
+  border-radius:16px;
+  padding:16px;
+  margin-bottom:16px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+.box{
+  background:#080d24;
+  padding:14px;
+  border-radius:14px;
+}
+
+.box span{
+  font-size:13px;
+  color:var(--muted);
+}
+
+.box strong{
+  display:block;
+  font-size:18px;
+  margin-top:4px;
+}
+
+input, select, button{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border-radius:12px;
+  border:none;
+  font-size:15px;
+  background:#080d24;
+  color:var(--text);
+}
+
+button{
+  background:linear-gradient(135deg,#4f46e5,#6366f1);
+  font-weight:600;
+}
+
+.item{
+  background:#080d24;
+  padding:12px;
+  border-radius:14px;
+  margin-top:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+small{color:var(--muted)}
+
+.green{color:var(--green)}
+.red{color:var(--red)}
+.yellow{color:var(--yellow)}
+
+.insight{
+  background:#080d24;
+  padding:12px;
+  border-radius:12px;
+  margin-top:10px;
+  font-size:14px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>Financeiro Pro</h1>
+  <div class="saldo" id="saldo">R$ 0,00</div>
+  <div class="status" id="status">Saúde financeira: —</div>
+</div>
+
+<div class="card">
+  <div class="grid">
+    <div class="box">
+      <span>Entradas</span>
+      <strong class="green" id="entrada">R$ 0</strong>
+    </div>
+    <div class="box">
+      <span>Saídas</span>
+      <strong class="red" id="saida">R$ 0</strong>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>🧠 Diagnóstico</h3>
+  <div id="insights"></div>
+</div>
+
+<div class="card">
+  <select id="tipo">
+    <option value="entrada">Entrada</option>
+    <option value="saida">Saída</option>
+  </select>
+
+  <input id="descricao" placeholder="Descrição">
+  <button type="button" onclick="iniciarVoz()">🎤 Falar</button>
+
+  <select id="categoria">
+    <option>Alimentação</option>
+    <option>Moradia</option>
+    <option>Transporte</option>
+    <option>Trabalho</option>
+    <option>Outros</option>
+  </select>
+
+  <input type="number" id="valor" placeholder="Valor R$" step="0.01">
+  <button onclick="add()">Registrar</button>
+</div>
+
+<div class="card">
+  <h3>Histórico</h3>
+  <div id="lista"></div>
+</div>
+
+</div>
+
+<script>
+let dados = JSON.parse(localStorage.getItem("finpro")) || [];
+
+function salvar(){
+  localStorage.setItem("finpro", JSON.stringify(dados));
+}
+
+function add(){
+  if(!descricao.value || !valor.value){
+    alert("Preencha a descrição e o valor");
+    return;
+  }
+
+  dados.push({
+    tipo:tipo.value,
+    descricao:descricao.value,
+    categoria:categoria.value,
+    valor:Number(valor.value),
+    data:new Date()
+  });
+
+  descricao.value="";
+  valor.value="";
+  salvar();
+  render();
+}
+
+function iniciarVoz(){
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("Reconhecimento de voz não suportado neste navegador");
+    return;
+  }
+
+  const reconhecimento = new webkitSpeechRecognition();
+  reconhecimento.lang = "pt-BR";
+  reconhecimento.interimResults = false;
+  reconhecimento.maxAlternatives = 1;
+
+  reconhecimento.start();
+
+  reconhecimento.onresult = function(event){
+    const texto = event.results[0][0].transcript;
+    descricao.value = texto;
+  };
+
+  reconhecimento.onerror = function(){
+    alert("Erro ao reconhecer a voz");
+  };
+}
+
+function render(){
+  let entrada=0, saida=0;
+  lista.innerHTML="";
+  insights.innerHTML="";
+
+  dados.forEach((d,i)=>{
+    d.tipo==="entrada" ? entrada+=d.valor : saida+=d.valor;
+
+    lista.innerHTML+=`
+      <div class="item">
+        <div>
+          <strong class="${d.tipo==="entrada"?"green":"red"}">
+            ${d.tipo==="entrada"?"+":"-"} R$ ${d.valor.toFixed(2)}
+          </strong><br>
+          <small>${d.descricao} • ${d.categoria}</small>
+        </div>
+        <button onclick="del(${i})">✕</button>
+      </div>`;
+  });
+
+  let saldo = entrada - saida;
+
+  entradaEl.textContent = "R$ " + entrada.toFixed(2);
+  saidaEl.textContent = "R$ " + saida.toFixed(2);
+  saldoEl.textContent = "R$ " + saldo.toFixed(2);
+
+  if(saldo > 0 && saida < entrada * 0.8){
+    status.textContent = "Saúde financeira: Boa";
+    status.className = "status green";
+  } else if(saldo > 0){
+    status.textContent = "Saúde financeira: Atenção";
+    status.className = "status yellow";
+  } else {
+    status.textContent = "Saúde financeira: Crítica";
+    status.className = "status red";
+  }
+
+  if(saida > entrada){
+    addInsight("Você está gastando mais do que ganha. Corte despesas.","red");
+  } else {
+    addInsight("Seu fluxo financeiro está positivo.","green");
+  }
+
+  let media = dados.length ? saida / new Date().getDate() : 0;
+  addInsight("Média de gasto diário: R$ " + media.toFixed(2),"");
+}
+
+function addInsight(txt,color){
+  insights.innerHTML += `<div class="insight ${color}">${txt}</div>`;
+}
+
+function del(i){
+  dados.splice(i,1);
+  salvar();
+  render();
+}
+
+const entradaEl = entrada;
+const saidaEl = saida;
+const saldoEl = saldo;
+
+render();
+</script>
+
+</body>
+</html>
